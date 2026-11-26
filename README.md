@@ -1,48 +1,32 @@
-# Siddhartha — Ultra-Premium WebGL Portfolio
+# Siddhartha — Portfolio
 
-A cinematic, real-time interactive portfolio built with Next.js, Three.js, GSAP, and Zustand.
+Light editorial portfolio of Peruri Jai Sai Siddhartha, built with Next.js 14 (App Router), React 18 and TypeScript. Smooth scrolling comes from Lenis. There is no WebGL and no client-side state library.
 
-## Quick Start
+## Run it
 
 ```bash
-# 1. Install dependencies
 npm install
-
-# 2. Add project images (optional — fallback placeholders auto-generate)
-# Drop files into: public/images/project-1.jpg, project-2.jpg, project-3.jpg
-
-# 3. Run dev server
-npm run dev
+npm run dev     # http://localhost:3000
+npm run build   # production build
 ```
 
-Open http://localhost:3000
+## Routes
 
-## File Structure
+| Route | What it is |
+| --- | --- |
+| `/` | Hero, featured work, approach, skills, contact call |
+| `/work` | All projects, filterable by discipline (`?tag=Games`) |
+| `/work/[slug]` | Case study for one project |
+| `/about` | Bio, education, highlights, skills |
+| `/contact` | Builds an email in the visitor's own mail app. No backend. |
+| `/privacy-policy` | Plain-language policy that matches what the site does |
 
-```
-app/
-├── layout.tsx        Root layout + fonts + metadata
-├── page.tsx          Entry: loading screen + Scene + Overlay
-├── store.ts          Zustand global state
-├── Shaders.ts        All GLSL shaders + uniform factories
-├── LiquidSphere.tsx  Morphing WebGL sphere + halo + neon rings
-├── Scene.tsx         Three.js canvas: camera, lights, particles, post-FX
-└── Overlay.tsx       UI layer: cursor, navbar, hero, sections, scroll sync
-public/
-└── images/           Project screenshot textures (optional)
-```
+Also included: `sitemap.xml`, `robots.txt`, a 404 page and an error page.
 
-## Customisation
+## Edit the content
 
-- **Projects**: Edit `PROJECTS` array in `app/store.ts`
-- **Colors**: Edit uniforms in `Shaders.ts` (`uColorCyan`, `uColorMagenta`, `uColorGold`)
-- **Performance**: In `LiquidSphere.tsx` lower `ICOSAHEDRON_DETAIL` (64→32); in `Scene.tsx` lower `PARTICLE_COUNT` (2200→1200)
-- **Contact link**: Replace `https://www.fiverr.com` in `Overlay.tsx`
-
-## Tech Stack
-
-- Next.js 14 (App Router + TypeScript)
-- Three.js + React Three Fiber + Drei
-- GSAP (ScrollTrigger + CustomEase)
-- Zustand (state sync between UI + WebGL)
-- @react-three/postprocessing (Bloom, CA, Noise, Vignette)
+- `content/projects.ts` holds every project. Add one object to `PROJECTS` and its page, filter chips and sitemap entry appear. Set `featured: true` to show it on the home page.
+- Screenshots go in `public/images/projects/`. List them in the project's `images` array with a real description in `alt`.
+- `content/site.ts` holds name, contact details, education and skills.
+- `content/legal.ts` holds the privacy policy text. Update it if the site starts using analytics, cookies or forms.
+- Colours and type live in `app/globals.css` under `:root`.

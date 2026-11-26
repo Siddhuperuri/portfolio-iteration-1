@@ -37,3 +37,6 @@ next-env.d.ts
 tests/*.pdf
 tests/random.txt
 test-result.png
+
+# Hallmark linter output
+.hallmark/

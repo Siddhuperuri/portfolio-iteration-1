@@ -1,38 +1,64 @@
 import type { Metadata, Viewport } from 'next'
-import '../components/ui/glare.css'
+import { Bricolage_Grotesque, Hanken_Grotesk } from 'next/font/google'
+import { SITE } from '@/content/site'
+import { ScrollProgress } from '@/components/chrome/ScrollProgress'
+import { SiteFooter } from '@/components/chrome/SiteFooter'
+import { SiteHeader } from '@/components/chrome/SiteHeader'
+import { SmoothScroll } from '@/components/chrome/SmoothScroll'
+import './globals.css'
+
+const display = Bricolage_Grotesque({
+  subsets: ['latin'],
+  variable: '--f-display',
+  display: 'swap',
+})
+
+const body = Hanken_Grotesk({
+  subsets: ['latin'],
+  variable: '--f-body',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
-  title:       'Peruri Jai Sai Siddhartha — Creative Designer',
-  description: 'Creative designer working across UI/UX, branding and web. Portfolio of Peruri Jai Sai Siddhartha.',
-  keywords:    ['UI/UX', 'Brand Identity', 'WebGL', 'Designer', 'Portfolio', 'Figma', 'Framer'],
-  authors:     [{ name: 'Peruri Jai Sai Siddhartha' }],
-  openGraph: {
-    title:       'Peruri Jai Sai Siddhartha — Creative Designer',
-    description: 'UI/UX, branding and web design by Peruri Jai Sai Siddhartha.',
-    type:        'website',
+  metadataBase: new URL(SITE.url),
+  title: {
+    default: `${SITE.name} — ${SITE.role}`,
+    template: `%s — ${SITE.short}`,
   },
+  description: SITE.description,
+  keywords: ['UI/UX', 'Brand Identity', 'Web Design', 'Designer', 'Portfolio', 'Figma', 'Framer'],
+  authors: [{ name: SITE.name }],
+  alternates: { canonical: '/' },
+  openGraph: {
+    title: `${SITE.name} — ${SITE.role}`,
+    description: 'UI/UX, branding and web design by Peruri Jai Sai Siddhartha.',
+    type: 'website',
+    url: SITE.url,
+  },
+  twitter: { card: 'summary' },
 }
 
 export const viewport: Viewport = {
-  width:        'device-width',
+  width: 'device-width',
   initialScale: 1,
-  themeColor:   '#07070C',
-  colorScheme:  'dark',
+  themeColor: '#F3EFE6',
+  colorScheme: 'light',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Anton&family=Bebas+Neue&family=Oswald:wght@300;400;500;700&family=Hanken+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={`${display.variable} ${body.variable}`} suppressHydrationWarning>
       <body suppressHydrationWarning>
-        {children}
+        <a className="skip-link" href="#main">
+          Skip to content
+        </a>
+        <ScrollProgress />
+        <SmoothScroll />
+        <SiteHeader />
+        <main id="main" tabIndex={-1}>
+          {children}
+        </main>
+        <SiteFooter />
       </body>
     </html>
   )
