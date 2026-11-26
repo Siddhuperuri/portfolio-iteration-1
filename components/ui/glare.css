@@ -37,13 +37,13 @@
 .toolkit-dialog__preview span { position:absolute; width:132px; height:132px; border-radius:50%; top:31px; left:calc(50% - 66px); background:var(--tool-color); filter:blur(25px); opacity:.5; }
 .toolkit-picker__heading { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
 .toolkit-picker__list { display:flex; flex-direction:column; gap:4px; }
-.toolkit-option { display:grid; grid-template-columns:28px 1fr; align-items:center; column-gap:13px; min-height:52px; padding:7px 10px; border-radius:10px; transition:transform .22s ease, background .22s ease; }
+.toolkit-option { display:grid; grid-template-columns:1fr; align-items:center; column-gap:13px; min-height:52px; padding:7px 10px; border-radius:10px; transition:transform .22s ease, background .22s ease; }
 .toolkit-option:hover { background:color-mix(in srgb, var(--tool-accent) 13%, transparent); }
 .toolkit-option:hover { transform:translate3d(4px,0,0); }
 .toolkit-option__icon { display:grid; place-items:center; width:22px; height:22px; border:1px solid; border-radius:6px; font-family:var(--font-mono, ui-monospace, monospace); font-size:16px; font-weight:700; line-height:1; }
 .toolkit-option__copy { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.toolkit-option__copy strong { color:rgba(233,238,255,.94); font-family:'Inter', system-ui, sans-serif; font-size:15px; font-weight:600; }
-.toolkit-option__copy small { color:rgba(185,205,232,.72); font-family:'Inter', system-ui, sans-serif; font-size:12px; line-height:1.2; }
+.toolkit-option__copy strong { color:rgba(233,238,255,.94); font-family:'Hanken Grotesk', system-ui, sans-serif; font-size:15px; font-weight:600; }
+.toolkit-option__copy small { color:rgba(185,205,232,.72); font-family:'Hanken Grotesk', system-ui, sans-serif; font-size:12px; line-height:1.2; }
 @media (max-width: 520px) { .toolkit-dialog-backdrop { padding:5px; } .toolkit-dialog { width:100%; } .toolkit-dialog__card { min-height:calc(100vh - 10px); border-radius:22px; } .toolkit-dialog__close { top:8px; right:8px; } .toolkit-dialog__preview { height:180px; } }
 @keyframes toolkit-fade-in { from { opacity:0; } to { opacity:1; } }
 @keyframes toolkit-wave { from { transform:translate3d(-4%,0,0) scaleY(.76); } to { transform:translate3d(4%,0,0) scaleY(1.18); } }

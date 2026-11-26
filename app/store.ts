@@ -50,10 +50,18 @@ export interface ThemeState {
   }
 }
 
-interface LenisInstance {
+export interface LenisInstance {
   scroll: number
+  velocity: number
+  direction: 1 | -1 | 0
   raf: (time: number) => void
   destroy: () => void
+  start: () => void
+  stop: () => void
+  scrollTo: (
+    target: string | number | HTMLElement,
+    options?: { offset?: number; duration?: number; immediate?: boolean; easing?: (t: number) => number },
+  ) => void
 }
 
 export interface PortfolioStore {
@@ -275,7 +283,7 @@ export const PROJECTS: ProjectDatum[] = [
     tools:       'HTML · CSS · JavaScript',
     color:       '#00F7FF',
     tags:        ['Websites', 'UI / UX'],
-    caseStudy:   'Travelease began as a research-first exercise — mapping how Indian tourists discover and plan trips across state borders. The platform emerged from that research as a unified layer: state-wise browsing, a gamified treasure-hunt layer that surfaces hidden destinations, a chatbot routing engine, and curated hotel + attraction cards. The visual language uses warm terracotta against deep navy to evoke the subcontinent\'s texture without resorting to cliché illustration. Every interaction was prototyped in low-fidelity first, tested with five users, then rebuilt. The final deliverable is a responsive web app with zero external dependencies — just HTML, CSS, and vanilla JS with careful progressive enhancement.',
+    caseStudy:   'Travelease started with research into how Indian tourists find and plan trips across state borders. The platform brings the answers together: state-wise browsing, a treasure-hunt layer that surfaces hidden destinations, a chatbot that suggests routes, and curated hotel and attraction cards. Warm terracotta against deep navy gives it a sense of place without cliché illustration. Every interaction was prototyped in low fidelity first, tested with five users, then rebuilt. It ships as a responsive web app in plain HTML, CSS and JavaScript, with no external dependencies.',
   },
   {
     title:       'SVEC · Modern Interactive Site',
@@ -289,29 +297,29 @@ export const PROJECTS: ProjectDatum[] = [
   {
     title:       'Petponks',
     subtitle:    'Brand · Logo · Wireframes',
-    description: 'Identity and product structure for a pet-focused platform — adoption, storytelling and community. Logo, low/high-fidelity wireframes, colour & layout system in Figma & Framer.',
+    description: 'Identity and product structure for a pet platform covering adoption, storytelling and community. Logo, low and high-fidelity wireframes, colour and layout system in Figma and Framer.',
     tools:       'Figma · Framer',
     color:       '#FF5FCF',
     tags:        ['Brand Identity', 'UI / UX', 'Wireframes'],
-    caseStudy:   'Petponks is a platform that connects animals with their forever homes — adoption, community storytelling, and ongoing pet care in one place. The brand identity was designed to feel warm, trustworthy, and slightly playful without infantilising the audience. The logomark uses a geometric paw abstracted into a modular stamp form, scalable from 16px favicon to 2m print. The colour system: a primary teal-cream duo for the app, a rich amber for emotional moments like adoption confirmations. Wireframes ran through three fidelity levels — paper sketches, annotated lo-fi in Figma, then a fully interactive Framer prototype used for stakeholder sign-off.',
+    caseStudy:   'Petponks is a pet platform that covers adoption, community storytelling and ongoing pet care in one place. The brand needed to feel warm, trustworthy and a little playful without talking down to its audience. The logomark is a geometric paw reduced to a modular stamp, and it holds up from a 16px favicon to a 2m print. The app uses a teal and cream pair, with amber reserved for emotional moments like adoption confirmations. Wireframes went through three stages: paper sketches, annotated low-fidelity frames in Figma, and an interactive Framer prototype used for stakeholder sign-off.',
   },
   {
     title:       'Vigil-88',
     subtitle:    'Cybersecurity · Brand · UI Concept',
-    description: 'Brand identity and UI concept for a cybersecurity platform. Dark-system visual language, threat-visualisation dashboard wireframes and a defensive interface grammar.',
+    description: 'Brand identity and UI concept for a cybersecurity platform: a dark visual language and threat-visualisation dashboard wireframes.',
     tools:       'Figma · Illustrator',
     color:       '#FF0087',
     tags:        ['Brand Identity', 'UI / UX'],
-    caseStudy:   'Vigil-88 began as a personal brand exploration: what would a cybersecurity product look like if it felt as considered as consumer design? The name references vigilance and the year aesthetic — a dark-coded system built for trust without sacrificing visual intelligence. The brand system uses a crimson-obsidian palette, sharp geometric logomark, and a typographic hierarchy borrowed from financial dashboards. Dashboard wireframes model real threat-visualisation needs: alert timelines, network maps, risk heat-grids. The UI language is deliberately minimal — information density without visual noise.',
+    caseStudy:   'Vigil-88 began as a personal brand exploration: what would a cybersecurity product look like if it felt as considered as consumer design? The name nods to vigilance, and the system is dark-coded to read as trustworthy. It uses a crimson and obsidian palette, a sharp geometric logomark and a type hierarchy borrowed from financial dashboards. The dashboard wireframes cover alert timelines, network maps and risk heat grids. The interface stays minimal so a lot of information fits without visual noise.',
   },
   {
     title:       'Design Collection',
     subtitle:    'Visual · Brand · Editorial',
-    description: 'A curated compilation of visual design work — logos, posters, social assets and brand systems across education, lifestyle and technology sectors.',
+    description: 'A collection of visual design work: logos, posters, social assets and brand systems across education, lifestyle and technology.',
     tools:       'Figma · Photoshop · Canva',
     color:       '#FEEE91',
     tags:        ['Brand Identity', 'Posters'],
-    caseStudy:   'The Design Collection is an ongoing archive of visual work produced across different briefs, clients and contexts. It spans editorial poster design, social media graphics, logo concepts and full brand identity systems. The through-line is a commitment to craft: every piece starts with a clear creative brief, moves through structured ideation, and arrives at something that communicates precisely. Highlights include educational institution graphics for SVEC events, lifestyle branding studies, and technology-sector identity concepts. Tools span from Figma for systematic work to Photoshop and Canva for faster production cycles.',
+    caseStudy:   'The Design Collection is an ongoing archive of visual work from different briefs, clients and contexts. It includes editorial posters, social media graphics, logo concepts and full brand identity systems. Each piece starts from a clear creative brief and goes through structured ideation. Highlights include graphics for SVEC events, lifestyle branding studies and technology-sector identity concepts. I use Figma for systematic work and Photoshop or Canva when production needs to move faster.',
   },
 ].filter(project => project.color !== '#9929EA')
 
@@ -321,7 +329,7 @@ export const SKILL_GROUPS = [
     items: ['UI / UX', 'Website Design', 'Logo & Branding', 'Poster · Banner', 'Visual Systems'],
   },
   {
-    label: 'Tools',
+    label: 'Software',
     items: ['Figma', 'Photoshop', 'Illustrator', 'Lightroom', 'Canva'],
   },
   {
@@ -351,13 +359,13 @@ export const PROFILE = {
     school: 'Sri Vasavi Engineering College',
     degree: 'B.Tech, Computer Science & Engineering',
     track:  'Cybersecurity · Blockchain · IoT',
-    years:  '2023 — 2027 (Expected)',
+    years:  '2023 to 2027 (expected)',
     cgpa:   '7.19 / 10',
   },
   highlights: [
     'Branding & UI concepts for VIGIL-88 (cybersecurity) and PETPONKS (pet platform)',
     'Logos, wireframes and visual assets in Canva, Figma and Framer',
     'Grounded in colour theory, typography and layout',
-    'Explores modern UI/UX — dark systems, minimal surfaces, interactive motion',
+    'Exploring modern UI/UX: dark systems, minimal surfaces, interactive motion',
   ],
 }

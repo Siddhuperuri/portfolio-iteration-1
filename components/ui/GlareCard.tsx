@@ -24,13 +24,13 @@ export function GlareCard({
   ...props
 }: GlareCardProps) {
   const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const glare = useGlare({ disabled: reducedMotion, intensity, tilt })
+  const { elementRef, ...glareHandlers } = useGlare({ disabled: reducedMotion, intensity, tilt })
 
   return (
     <div
       {...props}
-      {...glare}
-      ref={glare.elementRef}
+      {...glareHandlers}
+      ref={elementRef}
       className={`glare-card ${className}`}
       tabIndex={props.tabIndex ?? 0}
       aria-label={ariaLabel}

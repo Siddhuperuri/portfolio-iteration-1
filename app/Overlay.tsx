@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { motion, AnimatePresence, useSpring, useTransform } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import { gsap } from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { CustomEase } from 'gsap/CustomEase'
@@ -12,6 +12,7 @@ import {
 } from './store'
 import GlitchText from './GlitchText'
 import { GlareCard } from '../components/ui/GlareCard'
+import { scrollToTarget } from './scroll'
 
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger, CustomEase)
@@ -22,7 +23,7 @@ if (typeof window !== 'undefined') {
 // ─── Fonts + global tokens (used inline) ──────────────────────────────────────
 
 const FONT_DISPLAY = `'Bebas Neue', 'Anton', 'Oswald', sans-serif`
-const FONT_BODY    = `'Inter', system-ui, sans-serif`
+const FONT_BODY    = `'Hanken Grotesk', system-ui, sans-serif`
 const FONT_MONO    = `'JetBrains Mono', 'Courier Prime', ui-monospace, monospace`
 
 // Brand colours
@@ -67,7 +68,7 @@ function PillNav() {
   const link = (href: string, children: string) => {
     const onClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
       e.preventDefault()
-      document.querySelector(href)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      scrollToTarget(href)
     }
     return (
       <a href={href} onClick={onClick} className="nav-link interactive"
@@ -107,7 +108,7 @@ function PillNav() {
           background: 'rgba(7,7,12,0.6)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)',
           border: `1px solid rgba(0,247,255,0.22)`,
           boxShadow: `0 0 20px rgba(0,247,255,0.08), inset 0 0 12px rgba(0,247,255,0.04)`,
-          fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px',
+          fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px',
           textTransform: 'uppercase', color: 'rgba(215,225,255,0.75)',
           textDecoration: 'none', cursor: 'pointer',
         }}>
@@ -157,8 +158,8 @@ function Sidebar() {
       display: 'flex', flexDirection: 'column', gap: '8px', pointerEvents: 'auto',
     }}>
       <div style={{
-        fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2.5px',
-        textTransform: 'uppercase', color: 'rgba(215,225,255,0.45)', marginBottom: '6px',
+        fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2.5px',
+        textTransform: 'uppercase', color: 'rgba(215,225,255,0.62)', marginBottom: '6px',
       }}>
         What are you looking for?
       </div>
@@ -221,14 +222,39 @@ interface LiquidButtonProps {
 }
 
 function LiquidButton({ href, children, variant = 'primary', external = false }: LiquidButtonProps) {
-  const ref = useRef<HTMLAnchorElement>(null!)
+  const ref  = useRef<HTMLAnchorElement>(null!)
+  const wrap = useRef<HTMLSpanElement>(null!)
   const onClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (external) return
     if (href.startsWith('#')) {
       e.preventDefault()
-      document.querySelector(href)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      scrollToTarget(href)
     }
   }
+
+  // Magnetic pull toward the pointer. Mouse only, and off for reduced motion.
+  useEffect(() => {
+    const el = wrap.current
+    if (!el) return
+    const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+    const calm = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!fine || calm) return
+    const toX = gsap.quickTo(el, 'x', { duration: 0.5, ease: 'power3.out' })
+    const toY = gsap.quickTo(el, 'y', { duration: 0.5, ease: 'power3.out' })
+    const onMove = (e: PointerEvent) => {
+      const r = el.getBoundingClientRect()
+      toX((e.clientX - (r.left + r.width / 2)) * 0.22)
+      toY((e.clientY - (r.top + r.height / 2)) * 0.32)
+    }
+    const onLeave = () => { toX(0); toY(0) }
+    el.addEventListener('pointermove', onMove)
+    el.addEventListener('pointerleave', onLeave)
+    return () => {
+      el.removeEventListener('pointermove', onMove)
+      el.removeEventListener('pointerleave', onLeave)
+      gsap.killTweensOf(el)
+    }
+  }, [])
   const base: React.CSSProperties = {
     position: 'relative', display: 'inline-flex', alignItems: 'center', gap: '10px',
     padding: '14px 26px', borderRadius: '999px',
@@ -251,14 +277,16 @@ function LiquidButton({ href, children, variant = 'primary', external = false }:
     boxShadow: 'inset 0 0 12px rgba(215,225,255,0.02), 0 10px 30px rgba(0,0,0,0.3)',
   }
   return (
-    <a ref={ref} href={href} onClick={onClick}
-      className="btn interactive"
-      target={external ? '_blank' : undefined}
-      rel={external ? 'noopener noreferrer' : undefined}
-      style={style}>
-      {children}
-      <span style={{ opacity: 0.7 }}>&#8594;</span>
-    </a>
+    <span ref={wrap} style={{ display: 'inline-block' }}>
+      <a ref={ref} href={href} onClick={onClick}
+        className="btn interactive"
+        target={external ? '_blank' : undefined}
+        rel={external ? 'noopener noreferrer' : undefined}
+        style={style}>
+        {children}
+        <span style={{ opacity: 0.7 }}>&#8594;</span>
+      </a>
+    </span>
   )
 }
 
@@ -336,7 +364,7 @@ function ProjectDetail() {
             <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
               {datum.tags.map(tag => (
                 <span key={tag} style={{
-                  fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px',
+                  fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px',
                   textTransform: 'uppercase', color: datum.color,
                   padding: '4px 12px', borderRadius: '999px',
                   border: `1px solid ${datum.color}44`,
@@ -359,7 +387,7 @@ function ProjectDetail() {
             {/* Subtitle */}
             <p style={{
               fontFamily: FONT_MONO, fontSize: '12px', letterSpacing: '2px',
-              textTransform: 'uppercase', color: 'rgba(215,225,255,0.5)',
+              textTransform: 'uppercase', color: 'rgba(215,225,255,0.62)',
               marginBottom: '28px',
             }}>
               {datum.subtitle}
@@ -412,19 +440,17 @@ function HeroSection() {
   return (
     <section id="hero" style={{
       minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center',
-      padding: 'clamp(120px, 14vh, 160px) clamp(24px, 6vw, 96px) 0',
+      padding: 'clamp(120px, 14vh, 160px) max(clamp(24px, 6vw, 96px), calc((100% - 1440px) / 2)) 0',
       position: 'relative', zIndex: 10,
       pointerEvents: progress > 0.25 ? 'none' : 'auto',
       transform: `translateY(${progress * -60}px)`,
       opacity: 1 - progress * 2.8,
-      maxWidth: '1500px',
     }}>
       <div ref={metaRef} style={{
         display: 'flex', gap: '32px', marginBottom: '42px', flexWrap: 'wrap',
-        fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2.5px',
-        textTransform: 'uppercase', color: 'rgba(215,225,255,0.45)',
+        fontFamily: FONT_BODY, fontSize: '15px', letterSpacing: '0.2px',
+        color: 'rgba(215,225,255,0.7)',
       }}>
-        <span><span style={{ color: TEAL }}>&#9632;</span> Portfolio &mdash; 2026</span>
         <span>Based in {PROFILE.location}</span>
       </div>
 
@@ -446,11 +472,7 @@ function HeroSection() {
         fontSize: 'clamp(14px, 1.2vw, 17px)', fontWeight: 300,
         color: 'rgba(215,225,255,0.62)', lineHeight: 1.65, letterSpacing: '0.2px',
       }}>
-        <GlitchText text="Creative designer working across UI/UX, branding and web. Visually engaging, user-centred systems with clear structure — from low-fidelity wireframes to shipped interfaces." trigger="load" />
-        {false && <>
-        {' '}Visually engaging, user-centred systems with clear structure — from
-        low-fidelity wireframes to shipped interfaces.
-        </>}
+        <GlitchText text="Creative designer working across UI/UX, branding and web. I build user-centred interfaces with clear structure, from low-fidelity wireframes to shipped pages." trigger="load" />
       </p>
 
       <div ref={ctaRef} style={{ display: 'flex', gap: '14px', marginTop: '42px', flexWrap: 'wrap', alignItems: 'center' }}>
@@ -467,12 +489,12 @@ function ScrollHint() {
   const progress = usePortfolioStore(selectScrollProgress)
   return (
     <div style={{
-      position: 'absolute', bottom: '44px', right: 'clamp(24px, 5vw, 96px)',
+      position: 'absolute', bottom: '44px', right: 'max(clamp(24px, 5vw, 96px), calc((100% - 1440px) / 2))',
       display: 'flex', alignItems: 'center', gap: '12px',
       opacity: Math.max(0, 1 - progress * 6), transition: 'opacity 0.3s ease',
     }}>
-      <span style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(215,225,255,0.4)' }}>Scroll</span>
-      <div style={{ width: '1px', height: '44px', background: 'linear-gradient(to bottom, rgba(215,225,255,0.4), transparent)', animation: 'scrollPulse 2s ease-in-out infinite' }} />
+      <span style={{ fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(215,225,255,0.62)' }}>Scroll</span>
+      <div className="scroll-hint-line" style={{ width: '1px', height: '44px', background: 'linear-gradient(to bottom, rgba(215,225,255,0.62), transparent)', animation: 'scrollPulse 2s ease-in-out infinite' }} />
     </div>
   )
 }
@@ -493,7 +515,7 @@ function AboutSection() {
 
   return (
     <section id="about" ref={secRef} style={{
-      padding: 'clamp(80px, 12vw, 160px) clamp(24px, 6vw, 96px)',
+      padding: 'clamp(80px, 12vw, 160px) max(clamp(24px, 6vw, 96px), calc((100% - 1440px) / 2))',
       position: 'relative', zIndex: 10,
       display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(0, 1fr)',
       gap: 'clamp(36px, 6vw, 96px)', alignItems: 'start',
@@ -504,12 +526,6 @@ function AboutSection() {
         border: '1px solid rgba(153,41,234,0.16)',
         boxShadow: '0 0 24px rgba(153,41,234,0.06), 0 8px 28px rgba(0,0,0,0.45)',
       }}>
-        <div className="about-fade" style={{
-          fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2.5px',
-          textTransform: 'uppercase', color: 'rgba(215,225,255,0.45)', marginBottom: '18px',
-        }}>
-          <span style={{ color: LAV }}>&#9632;</span>&nbsp;&nbsp;01 / Philosophy
-        </div>
         <h2 className="about-fade" style={{
           fontFamily: FONT_DISPLAY, fontSize: 'clamp(36px, 6vw, 84px)',
           fontWeight: 400, textTransform: 'uppercase', letterSpacing: '-1px',
@@ -521,9 +537,9 @@ function AboutSection() {
           fontFamily: FONT_BODY, fontSize: 'clamp(14px, 1.1vw, 16px)', fontWeight: 300,
           color: 'rgba(215,225,255,0.65)', lineHeight: 1.75, maxWidth: '520px',
         }}>
-          I build visual systems that feel deliberate. Clean structures, confident
-          typography, calm surfaces — then just enough motion to make them feel
-          alive. Every pixel earns its place.
+          I design visual systems with clean structure, confident typography and
+          calm surfaces, then add only as much motion as it takes to make them
+          feel alive.
         </p>
       </div>
       <ul style={{
@@ -538,7 +554,7 @@ function AboutSection() {
             display: 'grid', gridTemplateColumns: '42px 1fr', gap: '16px',
             paddingBottom: '20px', borderBottom: '1px solid rgba(215,225,255,0.06)',
           }}>
-            <span style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px', color: TEAL, paddingTop: '2px' }}>0{i + 1}</span>
+            <span style={{ fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px', color: TEAL, paddingTop: '2px' }}>0{i + 1}</span>
             <span style={{ fontFamily: FONT_BODY, fontSize: '14px', fontWeight: 400, color: 'rgba(215,225,255,0.82)', lineHeight: 1.6, letterSpacing: '0.2px' }}>{h}</span>
           </li>
         ))}
@@ -584,7 +600,7 @@ function ProjectRow({ index, datum }: { index: number; datum: typeof PROJECTS[0]
       }}>
       <span style={{
         fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px',
-        color: isHover ? datum.color : 'rgba(215,225,255,0.4)',
+        color: isHover ? datum.color : 'rgba(215,225,255,0.62)',
         transition: 'color 0.3s ease',
       }}>0{index + 1}</span>
       <h3 style={{
@@ -601,8 +617,8 @@ function ProjectRow({ index, datum }: { index: number; datum: typeof PROJECTS[0]
         color: 'rgba(215,225,255,0.58)', lineHeight: 1.6, letterSpacing: '0.2px',
       }}>{datum.description}</p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
-        <span style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(215,225,255,0.5)' }}>{datum.subtitle}</span>
-        <span style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: datum.color, opacity: 0.75 }}>{datum.tools}</span>
+        <span style={{ fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(215,225,255,0.62)' }}>{datum.subtitle}</span>
+        <span style={{ fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', color: datum.color, opacity: 0.75 }}>{datum.tools}</span>
       </div>
       <div style={{
         position: 'absolute', left: 0, right: 0, bottom: 0, height: '1px',
@@ -640,8 +656,8 @@ function ProjectGlareCard({ index, datum }: { index: number; datum: typeof PROJE
     >
       <div style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '32px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px' }}>
-          <span style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px', color: datum.color }}>0{index + 1}</span>
-          <span style={{ fontFamily: FONT_MONO, fontSize: '9px', letterSpacing: '1.8px', color: 'rgba(215,225,255,0.46)', textTransform: 'uppercase', textAlign: 'right' }}>{datum.subtitle}</span>
+          <span style={{ fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px', color: datum.color }}>0{index + 1}</span>
+          <span style={{ fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '1.8px', color: 'rgba(215,225,255,0.62)', textTransform: 'uppercase', textAlign: 'right' }}>{datum.subtitle}</span>
         </div>
         <div>
           <h3 style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(42px, 5vw, 76px)', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '-1px', color: 'var(--ov-text)', lineHeight: .88, marginBottom: '20px' }}>
@@ -652,7 +668,7 @@ function ProjectGlareCard({ index, datum }: { index: number; datum: typeof PROJE
           </p>
         </div>
         <div style={{ display: 'flex', alignItems: 'end', justifyContent: 'space-between', gap: '20px', borderTop: '1px solid rgba(255,255,255,.09)', paddingTop: '18px' }}>
-          <span style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '1.8px', color: datum.color, textTransform: 'uppercase' }}>{datum.tools}</span>
+          <span style={{ fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '1.8px', color: datum.color, textTransform: 'uppercase' }}>{datum.tools}</span>
           <span aria-hidden="true" style={{ fontFamily: FONT_MONO, color: datum.color, fontSize: '18px', lineHeight: 1 }}>↗</span>
         </div>
       </div>
@@ -672,18 +688,10 @@ function WorkSection() {
   }, [])
 
   return (
-    <section id="work" style={{ padding: 'clamp(80px, 12vw, 160px) clamp(24px, 6vw, 96px)', position: 'relative', zIndex: 10 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 'clamp(36px, 5vw, 64px)', flexWrap: 'wrap', gap: '16px' }}>
-        <div>
-          <div style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2.5px', textTransform: 'uppercase', color: 'rgba(215,225,255,0.45)', marginBottom: '14px' }}>
-            <span style={{ color: TEAL }}>&#9632;</span>&nbsp;&nbsp;02 / Selected Work
-          </div>
-          <h2 ref={h2Ref} style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(40px, 7vw, 96px)', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '-1.5px', color: 'var(--ov-text)', lineHeight: 0.92 }}>
-            Projects<span style={{ color: LAV }}>.</span>
-          </h2>
-        </div>
-        <span style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px', color: 'rgba(215,225,255,0.5)', textTransform: 'uppercase' }}>0{PROJECTS.length} / 0{PROJECTS.length}</span>
-      </div>
+    <section id="work" style={{ padding: 'clamp(80px, 12vw, 160px) max(clamp(24px, 6vw, 96px), calc((100% - 1440px) / 2))', position: 'relative', zIndex: 10 }}>
+      <h2 ref={h2Ref} style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(40px, 7vw, 96px)', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '-1.5px', color: 'var(--ov-text)', lineHeight: 0.92, marginBottom: 'clamp(36px, 5vw, 64px)' }}>
+        Projects<span style={{ color: LAV }}>.</span>
+      </h2>
       <div className="project-glare-grid" style={{
         display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 'clamp(18px, 2.5vw, 32px)',
       }}>
@@ -696,38 +704,69 @@ function WorkSection() {
 // ─── Design Highlights (marquee) ─────────────────────────────────────────────
 
 function HighlightsSection() {
+  const secRef   = useRef<HTMLElement>(null!)
   const trackRef = useRef<HTMLDivElement>(null!)
+  const [calm, setCalm] = useState(false)
 
   useEffect(() => {
-    if (!trackRef.current) return
-    const tl = gsap.to(trackRef.current, {
-      xPercent: -50,
-      ease: 'none',
-      duration: 28,
-      repeat: -1,
-    })
-    return () => { tl.kill() }
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)')
+    setCalm(mq.matches)
+    const onChange = (e: MediaQueryListEvent) => setCalm(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
   }, [])
 
-  const doubled = [...PROJECTS, ...PROJECTS]
+  // Base drift of one loop per 28s. Scrolling pushes it faster and flips its
+  // direction with the scroll direction; velocity also leans the text.
+  useEffect(() => {
+    const track = trackRef.current
+    const sec = secRef.current
+    if (!track || !sec || calm) return
+
+    let visible = true
+    const io = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting })
+    io.observe(sec)
+
+    let x = 0
+    let boost = 0
+    let lean = 0
+    const tick = (_t: number, deltaMs: number) => {
+      if (!visible) return
+      const dt = Math.min(deltaMs, 50) / 1000
+      const loop = track.scrollWidth / 2
+      const lenis = usePortfolioStore.getState().lenis
+      const v = lenis?.velocity ?? 0
+      const dir = v < 0 ? -1 : 1
+      const target = dir * Math.min(Math.abs(v) * 0.09, 5)
+      boost += (target - boost) * Math.min(1, dt * 6)
+      lean  += (Math.max(-7, Math.min(7, -v * 0.12)) - lean) * Math.min(1, dt * 8)
+      x -= (loop / 28) * (1 + boost) * dt
+      if (x <= -loop) x += loop
+      if (x > 0) x -= loop
+      track.style.transform = `translate3d(${x}px,0,0) skewX(${lean}deg)`
+    }
+    gsap.ticker.add(tick)
+    return () => {
+      gsap.ticker.remove(tick)
+      io.disconnect()
+      track.style.transform = ''
+    }
+  }, [calm])
+
+  const items = calm ? PROJECTS : [...PROJECTS, ...PROJECTS]
 
   return (
-    <section style={{
+    <section ref={secRef} style={{
       overflow: 'hidden',
       padding: 'clamp(48px, 8vw, 96px) 0',
       borderTop: '1px solid rgba(215,225,255,0.06)',
       borderBottom: '1px solid rgba(215,225,255,0.06)',
       position: 'relative', zIndex: 10,
     }}>
-      <div style={{
-        fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2.5px',
-        textTransform: 'uppercase', color: 'rgba(215,225,255,0.45)',
-        paddingLeft: 'clamp(24px, 6vw, 96px)', marginBottom: '28px',
-      }}>
-        <span style={{ color: VIOLET }}>&#9632;</span>&nbsp;&nbsp;03 / Design Highlights
-      </div>
-      <div ref={trackRef} style={{ display: 'flex', gap: '64px', whiteSpace: 'nowrap', width: 'max-content', alignItems: 'center' }}>
-        {doubled.map((p, i) => (
+      <div ref={trackRef} aria-hidden="true" style={calm
+        ? { display: 'flex', flexWrap: 'wrap', gap: '16px 48px', padding: '0 max(clamp(24px, 6vw, 96px), calc((100% - 1440px) / 2))', alignItems: 'center' }
+        : { display: 'flex', gap: '64px', whiteSpace: 'nowrap', width: 'max-content', alignItems: 'center', willChange: 'transform' }}>
+        {items.map((p, i) => (
           <span key={i} style={{
             display: 'inline-flex', alignItems: 'baseline', gap: '18px',
             fontFamily: FONT_DISPLAY,
@@ -752,19 +791,6 @@ function HighlightsSection() {
 }
 
 // ─── Toolkit ──────────────────────────────────────────────────────────────────
-
-const TOOL_DESCRIPTIONS: Record<string, string> = {
-  'UI / UX': 'Interface design', 'Website Design': 'Digital experiences', 'Logo & Branding': 'Identity systems',
-  'Poster · Banner': 'Campaign visuals', 'Visual Systems': 'Design foundations', Figma: 'Design and prototype',
-  Photoshop: 'Photo and image editing', Illustrator: 'Vector graphics', Lightroom: 'Photo finishing',
-  Canva: 'Fast visual content', Framer: 'Interactive prototyping', HTML: 'Semantic structure',
-  CSS: 'Visual styling', 'Responsive Design': 'Adaptive interfaces',
-}
-
-function ToolGlyph({ index, color }: { index: number; color: string }) {
-  const symbols = ['◇', '◫', '⌁', '▱', '✦', '‹›']
-  return <span className="toolkit-option__icon" style={{ color, borderColor: `${color}80` }} aria-hidden="true">{symbols[index % symbols.length]}</span>
-}
 
 function ToolkitSection() {
   const secRef = useRef<HTMLElement>(null!)
@@ -798,10 +824,7 @@ function ToolkitSection() {
   const selectedColor = selectedTool === null ? TEAL : colors[selectedTool % colors.length]
 
   return (
-    <section id="toolkit" ref={secRef} style={{ padding: 'clamp(80px, 12vw, 160px) clamp(24px, 6vw, 96px)', position: 'relative', zIndex: 10 }}>
-      <div className="tool-fade" style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2.5px', textTransform: 'uppercase', color: 'rgba(215,225,255,0.45)', marginBottom: '14px' }}>
-        <span style={{ color: AMBER }}>&#9632;</span>&nbsp;&nbsp;04 / Toolkit
-      </div>
+    <section id="toolkit" ref={secRef} style={{ padding: 'clamp(80px, 12vw, 160px) max(clamp(24px, 6vw, 96px), calc((100% - 1440px) / 2))', position: 'relative', zIndex: 10 }}>
       <h2 className="tool-fade" style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(40px, 7vw, 96px)', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '-1.5px', color: 'var(--ov-text)', lineHeight: 0.92, marginBottom: 'clamp(36px, 5vw, 64px)' }}>
         What I use<span style={{ color: LAV }}>.</span>
       </h2>
@@ -810,15 +833,11 @@ function ToolkitSection() {
           const col = colors[gi % 3]
           return (
             <GlareCard key={group.label} className="tool-fade toolkit-picker" glareColor={col} intensity={0.78} tabIndex={-1} ariaLabel={`${group.label} tools`} style={{ '--tool-accent': col, padding: 'clamp(16px, 2vw, 22px)', minHeight: '330px' } as React.CSSProperties}>
-              <div className="toolkit-picker__heading">
-                <span style={{ fontFamily: FONT_BODY, fontSize: '16px', fontWeight: 600, color: 'var(--ov-text)' }}>{group.label} tools</span>
-                <span style={{ fontFamily: FONT_BODY, fontSize: '13px', color: 'rgba(215,225,255,.62)' }}>Selected tools I use</span>
-              </div>
+              <h3 className="toolkit-picker__heading" style={{ fontFamily: FONT_DISPLAY, fontSize: '30px', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '0.5px', color: col }}>{group.label}</h3>
               <ul className="toolkit-picker__list" style={{ listStyle: 'none' }}>
-                {group.items.map((it, itemIndex) => (
+                {group.items.map((it) => (
                   <li key={it} className="toolkit-option">
-                    <ToolGlyph index={itemIndex + gi * 2} color={col} />
-                    <span className="toolkit-option__copy"><strong>{it}</strong><small>{TOOL_DESCRIPTIONS[it] ?? 'Creative workflow'}</small></span>
+                    <span className="toolkit-option__copy"><strong>{it}</strong></span>
                   </li>
                 ))}
               </ul>
@@ -834,8 +853,8 @@ function ToolkitSection() {
             <GlareCard glareColor={selectedColor} intensity={.65} tilt={5} className="toolkit-dialog__card" style={{ padding: 'clamp(24px, 3vw, 36px)' }}>
               <div className="toolkit-dialog__preview" aria-hidden="true"><span /></div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                <span style={{ padding: '5px 10px', borderRadius: '999px', color: selectedColor, border: `1px solid ${selectedColor}70`, fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '1.4px' }}>{selectedGroup.label}</span>
-                <span style={{ fontFamily: FONT_MONO, fontSize: '10px', color: 'rgba(215,225,255,.44)', letterSpacing: '1.5px' }}>SELECTED TOOLKIT</span>
+                <span style={{ padding: '5px 10px', borderRadius: '999px', color: selectedColor, border: `1px solid ${selectedColor}70`, fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '1.4px' }}>{selectedGroup.label}</span>
+                <span style={{ fontFamily: FONT_MONO, fontSize: '11px', color: 'rgba(215,225,255,.44)', letterSpacing: '1.5px' }}>SELECTED TOOLKIT</span>
               </div>
               <h3 style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(38px, 5vw, 62px)', textTransform: 'uppercase', lineHeight: .9, color: 'var(--ov-text)', marginBottom: '14px' }}>{selectedGroup.label}</h3>
               <p style={{ fontFamily: FONT_BODY, fontSize: '15px', lineHeight: 1.65, color: 'rgba(215,225,255,.62)', marginBottom: '24px' }}>A focused set of tools and skills I use to turn ideas into clear, considered digital work.</p>
@@ -868,30 +887,27 @@ function EducationSection() {
 
   return (
     <section id="education" ref={secRef} style={{
-      padding: 'clamp(60px, 10vw, 140px) clamp(24px, 6vw, 96px)',
+      padding: 'clamp(60px, 10vw, 140px) max(clamp(24px, 6vw, 96px), calc((100% - 1440px) / 2))',
       position: 'relative', zIndex: 10,
       display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.3fr)',
       gap: 'clamp(36px, 6vw, 96px)', alignItems: 'start',
     }}>
       <div>
-        <div className="edu-fade" style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2.5px', textTransform: 'uppercase', color: 'rgba(215,225,255,0.45)', marginBottom: '14px' }}>
-          <span style={{ color: TEAL }}>&#9632;</span>&nbsp;&nbsp;05 / Education
-        </div>
         <h2 className="edu-fade" style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(30px, 5vw, 72px)', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '-1px', color: 'var(--ov-text)', lineHeight: 0.95 }}>
           Academic<br />foundation.
         </h2>
       </div>
       <div className="edu-fade" style={{ padding: '32px', borderRadius: '14px', background: 'rgba(7,7,12,0.55)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', border: `1px solid rgba(153,41,234,0.16)`, boxShadow: '0 0 22px rgba(153,41,234,0.06), 0 8px 24px rgba(0,0,0,0.4)' }}>
-        <div style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: LAV, marginBottom: '14px' }}>{years}</div>
+        <div style={{ fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', color: '#C79BFF', marginBottom: '14px' }}>{years}</div>
         <h3 style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(22px, 2.5vw, 34px)', fontWeight: 400, letterSpacing: '-0.5px', textTransform: 'uppercase', color: 'var(--ov-text)', marginBottom: '12px', lineHeight: 1.1 }}>{school}</h3>
         <p style={{ fontFamily: FONT_BODY, fontSize: '15px', fontWeight: 400, color: 'rgba(215,225,255,0.75)', lineHeight: 1.6, marginBottom: '22px' }}>{degree}</p>
         <div style={{ display: 'flex', gap: '28px', flexWrap: 'wrap', paddingTop: '20px', borderTop: '1px solid rgba(215,225,255,0.08)' }}>
           <div>
-            <div style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px', color: 'rgba(215,225,255,0.45)', textTransform: 'uppercase' }}>CGPA</div>
+            <div style={{ fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px', color: 'rgba(215,225,255,0.62)', textTransform: 'uppercase' }}>CGPA</div>
             <div style={{ fontFamily: FONT_DISPLAY, fontSize: '24px', color: 'var(--ov-text)', letterSpacing: '0.5px', marginTop: '4px' }}>{cgpa}</div>
           </div>
           <div>
-            <div style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px', color: 'rgba(215,225,255,0.45)', textTransform: 'uppercase' }}>Coursework</div>
+            <div style={{ fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px', color: 'rgba(215,225,255,0.62)', textTransform: 'uppercase' }}>Coursework</div>
             <div style={{ fontFamily: FONT_BODY, fontSize: '13px', color: 'rgba(215,225,255,0.75)', marginTop: '4px', maxWidth: '280px' }}>
               Data Structures · Databases · Web Dev · OOP/Java · Networks
             </div>
@@ -918,15 +934,10 @@ function ContactSection() {
   }, [])
 
   return (
-    <section id="contact" ref={sectionRef} style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', padding: 'clamp(80px, 12vw, 160px) clamp(24px, 6vw, 96px)', position: 'relative', zIndex: 10 }}>
-      <div className="contact-animate" style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2.5px', textTransform: 'uppercase', color: 'rgba(215,225,255,0.45)', marginBottom: '14px' }}>
-        <span style={{ color: AMBER }}>&#9632;</span>&nbsp;&nbsp;06 / Contact
-      </div>
+    <section id="contact" ref={sectionRef} style={{ minHeight: '80vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'flex-start', padding: 'clamp(80px, 12vw, 160px) max(clamp(24px, 6vw, 96px), calc((100% - 1440px) / 2))', position: 'relative', zIndex: 10 }}>
       <h2 className="contact-animate" style={{ fontFamily: FONT_DISPLAY, fontSize: 'clamp(48px, 9vw, 140px)', fontWeight: 400, textTransform: 'uppercase', letterSpacing: '-2px', color: 'var(--ov-text)', lineHeight: 0.88, marginBottom: '32px', maxWidth: '1200px' }}>
         Let&rsquo;s build<br />
-        <span style={{ background: `linear-gradient(90deg, ${TEAL}, ${VIOLET}, ${LAV})`, WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-          something real.
-        </span>
+        <span style={{ color: TEAL }}>something real.</span>
       </h2>
       <div className="contact-animate" style={{
         padding: 'clamp(24px, 3vw, 40px)', borderRadius: '14px',
@@ -936,8 +947,8 @@ function ContactSection() {
         display: 'flex', flexDirection: 'column', gap: '0', maxWidth: '680px', width: '100%',
       }}>
         <p style={{ fontFamily: FONT_BODY, fontSize: 'clamp(14px, 1.15vw, 17px)', fontWeight: 300, color: 'rgba(215,225,255,0.62)', lineHeight: 1.7, marginBottom: '32px' }}>
-          Currently open to design internships and freelance collaborations — branding,
-          UI/UX and web projects. Write if you&rsquo;d like to work together.
+          Open to design internships and freelance work in branding, UI/UX and
+          web. Email me if you&rsquo;d like to work together.
         </p>
         <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginBottom: '32px' }}>
           <LiquidButton href={`mailto:${PROFILE.email}`} variant="primary" external>{PROFILE.email}</LiquidButton>
@@ -951,7 +962,7 @@ function ContactSection() {
             { label: 'Status', value: 'Open to internships' },
           ].map(item => (
             <div key={item.label}>
-              <div style={{ fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(215,225,255,0.4)', marginBottom: '6px' }}>{item.label}</div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', color: 'rgba(215,225,255,0.62)', marginBottom: '6px' }}>{item.label}</div>
               <div style={{ fontFamily: FONT_BODY, fontSize: '14px', fontWeight: 400, color: 'rgba(215,225,255,0.85)', letterSpacing: '0.2px' }}>{item.value}</div>
             </div>
           ))}
@@ -965,9 +976,13 @@ function ContactSection() {
 
 function Footer() {
   return (
-    <footer style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'clamp(24px, 4vw, 44px) clamp(24px, 6vw, 96px)', color: 'rgba(215,225,255,0.3)', fontFamily: FONT_MONO, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', borderTop: '1px solid rgba(215,225,255,0.06)', position: 'relative', zIndex: 10 }}>
+    <footer style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px 24px', padding: 'clamp(24px, 4vw, 44px) max(clamp(24px, 6vw, 96px), calc((100% - 1440px) / 2))', color: 'rgba(215,225,255,0.62)', fontFamily: FONT_MONO, fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', borderTop: '1px solid rgba(215,225,255,0.06)', position: 'relative', zIndex: 10 }}>
       <span>&copy; 2026 {PROFILE.short}</span>
-      <span>Crafted with care &mdash; India</span>
+      <button type="button" onClick={() => scrollToTarget(0)} className="nav-link interactive"
+        style={{ background: 'none', border: 'none', color: 'var(--ov-text)', font: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit', padding: '8px 6px' }}>
+        Back to top &#8593;
+      </button>
+      <span>Made in India</span>
     </footer>
   )
 }
@@ -976,36 +991,58 @@ function Footer() {
 
 function ScrollProgressBar() {
   const progress = usePortfolioStore(selectScrollProgress)
-  // Vertical indicator spring
-  const springProgress = useSpring(progress, { stiffness: 80, damping: 20 })
-  const nodeTop = useTransform(springProgress, [0, 1], ['0%', '100%'])
 
   return (
-    <>
-      {/* Horizontal top bar */}
-      <div style={{
-        position: 'fixed', top: 0, left: 0, width: `${progress * 100}%`, height: '1px',
-        background: `linear-gradient(90deg, ${TEAL}, ${VIOLET}, ${LAV})`,
-        boxShadow: `0 0 8px rgba(0,247,255,0.8), 0 0 18px rgba(0,247,255,0.3)`,
-        zIndex: 2000, transition: 'width 0.05s linear',
-      }} />
+    <div aria-hidden="true" style={{
+      position: 'fixed', top: 0, left: 0, width: `${progress * 100}%`, height: '1px',
+      background: `linear-gradient(90deg, ${TEAL}, ${VIOLET}, ${LAV})`,
+      boxShadow: `0 0 8px rgba(0,247,255,0.8), 0 0 18px rgba(0,247,255,0.3)`,
+      zIndex: 2000, transition: 'width 0.05s linear',
+    }} />
+  )
+}
 
-      {/* Vertical right-edge indicator */}
-      <div style={{
-        position: 'fixed', right: '20px', top: '50%', transform: 'translateY(-50%)',
-        width: '2px', height: '120px', background: 'rgba(255,255,255,0.12)',
-        zIndex: 800, borderRadius: '1px',
-      }}>
-        <motion.div style={{
-          position: 'absolute', left: '50%', transform: 'translateX(-50%)',
-          width: '8px', height: '8px', borderRadius: '50%',
-          background: TEAL,
-          boxShadow: `0 0 8px ${TEAL}`,
-          top: nodeTop,
-          translateY: '-50%',
-        }} />
-      </div>
-    </>
+// ─── Section rail (right edge) ────────────────────────────────────────────────
+
+const RAIL_SECTIONS = [
+  { id: 'hero',      label: 'Intro' },
+  { id: 'about',     label: 'About' },
+  { id: 'work',      label: 'Work' },
+  { id: 'toolkit',   label: 'Toolkit' },
+  { id: 'education', label: 'Education' },
+  { id: 'contact',   label: 'Contact' },
+]
+
+function SectionRail() {
+  const [active, setActive] = useState('hero')
+
+  useEffect(() => {
+    const seen = new Map<string, boolean>()
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => seen.set(e.target.id, e.isIntersecting))
+      const first = RAIL_SECTIONS.find(s => seen.get(s.id))
+      if (first) setActive(first.id)
+    }, { rootMargin: '-45% 0px -50% 0px' })
+    RAIL_SECTIONS.forEach(s => {
+      const el = document.getElementById(s.id)
+      if (el) io.observe(el)
+    })
+    return () => io.disconnect()
+  }, [])
+
+  return (
+    <nav aria-label="Page sections" className="section-rail">
+      {RAIL_SECTIONS.map(s => (
+        <button key={s.id} type="button"
+          className="rail-btn interactive"
+          aria-label={`Go to ${s.label}`}
+          aria-current={active === s.id ? 'true' : undefined}
+          onClick={() => scrollToTarget(`#${s.id}`)}>
+          <span className="rail-label">{s.label}</span>
+          <span className="rail-dot" />
+        </button>
+      ))}
+    </nav>
   )
 }
 
@@ -1048,7 +1085,10 @@ const GLOBAL_CSS = `
     --ov-text-secondary: rgba(200,215,255,0.75);
     --ov-bg: #1A0F2E;
   }
-  html { scroll-behavior: smooth; }
+  html.lenis, html.lenis body { height: auto; }
+  .lenis.lenis-smooth { scroll-behavior: auto !important; }
+  .lenis.lenis-smooth [data-lenis-prevent] { overscroll-behavior: contain; }
+  .lenis.lenis-stopped { overflow: hidden; }
   body {
     background: var(--ov-bg); color: var(--ov-text); overflow-x: hidden;
     font-family: ${FONT_BODY}; font-size: 15px;
@@ -1142,12 +1182,17 @@ const GLOBAL_CSS = `
     background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
     transform: translateX(-100%) skewX(-15deg); pointer-events: none;
   }
-  .btn:hover { transform: scale(1.04) translateY(-1px) !important; }
-  .btn:hover::after { animation: lightSweep 0.55s ease forwards; }
+  @media (hover: hover) and (pointer: fine) {
+    .btn:hover { transform: scale(1.04) translateY(-1px) !important; }
+    .btn:hover::after { animation: lightSweep 0.55s ease forwards; }
+  }
   .btn:hover {
     box-shadow: 0 0 25px rgba(0,247,255,0.22), 0 0 55px rgba(0,247,255,0.08),
                 inset 0 0 18px rgba(0,247,255,0.06) !important;
     border-color: rgba(0,247,255,0.5) !important;
+  }
+  .btn:focus-visible, .nav-link:focus-visible, .rail-btn:focus-visible {
+    outline: 2px solid ${TEAL}; outline-offset: 3px;
   }
 
   /* ── Pill nav ── */
@@ -1165,6 +1210,47 @@ const GLOBAL_CSS = `
   .project-row { transition: background 0.35s ease !important; }
   .project-row:hover { background: rgba(0,247,255,0.018) !important; }
   @media (max-width: 760px) { .project-glare-grid { grid-template-columns: 1fr !important; } }
+
+  /* ── Section rail ── */
+  .section-rail {
+    position: fixed; right: 10px; top: 50%; transform: translateY(-50%);
+    z-index: 800; display: flex; flex-direction: column; gap: 2px;
+  }
+  .rail-btn {
+    position: relative; width: 28px; height: 28px; padding: 0;
+    background: none; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .rail-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(215,225,255,0.35);
+    transition: transform 0.25s cubic-bezier(0.23,1,0.32,1), background 0.25s ease, box-shadow 0.25s ease;
+  }
+  .rail-btn[aria-current="true"] .rail-dot {
+    background: ${TEAL}; transform: scale(1.5); box-shadow: 0 0 10px ${TEAL};
+  }
+  .rail-label {
+    position: absolute; right: 100%; margin-right: 6px; white-space: nowrap;
+    font-family: ${FONT_MONO}; font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+    color: var(--ov-text); background: rgba(7,7,12,0.78);
+    padding: 4px 8px; border-radius: 6px; border: 1px solid rgba(0,247,255,0.14);
+    opacity: 0; transform: translateX(6px); pointer-events: none;
+    transition: opacity 0.18s ease, transform 0.18s cubic-bezier(0.23,1,0.32,1);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .rail-btn:hover .rail-dot { background: ${TEAL}; }
+    .rail-btn:hover .rail-label { opacity: 1; transform: none; }
+  }
+  .rail-btn:focus-visible .rail-label { opacity: 1; transform: none; }
+  @media (max-width: 760px) { .section-rail { display: none; } }
+
+  /* ── Reduced motion: no looping ambient motion, no hover lift ── */
+  @media (prefers-reduced-motion: reduce) {
+    #hero h1, #hero::before, .pill-nav, .scroll-hint-line { animation: none !important; }
+    .btn:hover { transform: none !important; }
+    .btn:hover::after { animation: none !important; }
+    .rail-dot, .rail-label { transition: none; }
+  }
 `
 
 function GlobalStyles() {
@@ -1197,6 +1283,7 @@ export default function Overlay() {
       <ScrollSyncer />
       <MouseTracker />
       <ScrollProgressBar />
+      <SectionRail />
       <LogoMark />
       <PillNav />
       <ProjectDetail />

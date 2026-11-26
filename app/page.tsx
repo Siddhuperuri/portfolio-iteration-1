@@ -8,6 +8,8 @@ import { CustomEase } from 'gsap/CustomEase'
 import { usePortfolioStore } from './store'
 import Overlay from './Overlay'
 import AudioToggle from './AudioToggle'
+import SmoothScroll from './SmoothScroll'
+import { scrollToTarget } from './scroll'
 
 const Scene = lazy(() => import('./Scene'))
 
@@ -160,19 +162,31 @@ function useProjectScrollSync() {
 function useKeyboardNav() {
   useEffect(() => {
     const sections = ['#hero', '#about', '#work', '#toolkit', '#education', '#contact']
-    let current = 0
+    // Index of the section the viewport is currently inside, so the wheel and
+    // the keys stay in step.
+    const currentIndex = () => {
+      const probe = window.innerHeight * 0.4
+      let idx = 0
+      sections.forEach((sel, i) => {
+        const el = document.querySelector(sel)
+        if (el && el.getBoundingClientRect().top <= probe) idx = i
+      })
+      return idx
+    }
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         usePortfolioStore.getState().setDetailProject(null)
         return
       }
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (usePortfolioStore.getState().detailProject !== null) return
       if (e.key === 'ArrowDown' || e.key === 'j') {
-        current = Math.min(current + 1, sections.length - 1)
-        document.querySelector(sections[current])?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        e.preventDefault()
+        scrollToTarget(sections[Math.min(currentIndex() + 1, sections.length - 1)])
       }
       if (e.key === 'ArrowUp' || e.key === 'k') {
-        current = Math.max(current - 1, 0)
-        document.querySelector(sections[current])?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        e.preventDefault()
+        scrollToTarget(sections[Math.max(currentIndex() - 1, 0)])
       }
     }
     window.addEventListener('keydown', onKey)
@@ -220,6 +234,7 @@ export default function Page() {
   return (
     <>
       <StoreInitialiser />
+      <SmoothScroll locked={!loaded} />
       {!loaded && <LoadingScreen onComplete={handleLoadComplete} />}
       <div ref={pageRef} style={{ position: 'relative', minHeight: '100vh', width: '100%', overflowX: 'hidden' }}>
         <SceneErrorBoundary>
